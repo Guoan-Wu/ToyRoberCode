@@ -2,26 +2,27 @@
 #include "myString.h"
 #include "robot.h"
 #include <cassert>
-
+#include <array>
+#include <memory>
  //unit test for robert.h. Using googletese would be better. 
 
-//base calss for test, defining an interface "test_all" that is used to 
+//base calss for test, defining an interface "Test_all" that is used to 
 //implement all unit tests for a class. 
- class test_base
+ class Test_base
  {
  public:
-    test_base(/* args */){}
-    ~test_base(){}
+    Test_base(/* args */){}
+    ~Test_base(){}
     virtual void test_all()=0;
  };
  
  
  //unit test for class ParseCommand.
-class test_ParseCommand:public test_base {
+class Test_ParseCommand:public Test_base {
 public:
-    test_ParseCommand(){}
-    ~test_ParseCommand(){}
-    virtual void test_all(){
+    Test_ParseCommand(){}
+    ~Test_ParseCommand() {}
+    void test_all() override {
         test_all_parseACommand();
     }
     void test_all_parseACommand(){
@@ -38,7 +39,10 @@ public:
         test_parseACommand("RIGHT",RobotCmd(CMD_RIGHT,0,0,NORTH));
         test_parseACommand("REPORT",RobotCmd(CMD_REPORT,0,0,NORTH));
 
+            //extra blank spaces.
+        test_parseACommand(" PLACE  6,3,NORTH",RobotCmd(CMD_PLACE,6,3,NORTH));            
         //}
+
         //{invalid.
             //float value.
         test_parseACommand("PLACE 2,2.5,WEST",RobotCmd(CMD_UNKNOWN,0,0,NORTH));
@@ -51,11 +55,10 @@ public:
         test_parseACommand("PLACE 2,-10,EAST",RobotCmd(CMD_UNKNOWN,0,0,NORTH));
         test_parseACommand("PLACE -62,80,EAST",RobotCmd(CMD_UNKNOWN,0,0,NORTH));
             //cmd type is not at zero position.
-        test_parseACommand(" PLACE 3,3,EAST",RobotCmd(CMD_UNKNOWN,0,0,NORTH));
+        test_parseACommand("3,3,EAST PLACE",RobotCmd(CMD_UNKNOWN,0,0,NORTH));
             //blank input.
         test_parseACommand("",RobotCmd(CMD_UNKNOWN,0,0,NORTH));
             //wrong cmd type.
-        test_parseACommand("Place 3,3,NORTH",RobotCmd(CMD_UNKNOWN,0,0,NORTH));
         test_parseACommand("HELLO 3,3,NORTH",RobotCmd(CMD_UNKNOWN,0,0,NORTH));
             //lacking args in PLACE cmd.
         test_parseACommand("PLACE",RobotCmd(CMD_UNKNOWN,0,0,NORTH));
@@ -72,14 +75,14 @@ public:
    
 };
  //unit test for class MyString.
-class test_mystring
+class Test_mystring : public Test_base
 {
 private:
     /* data */
 public:
-    test_mystring(/* args */){}
-    ~test_mystring(){}
-    virtual void test_all(){
+    Test_mystring(/* args */){}
+    ~Test_mystring(){}
+    void test_all() override {
         test_all_split();
     }
      void test_all_split(){
@@ -104,11 +107,172 @@ private:
 };
 
 
-// int main(){
-//     test_mystring   objMyString;
-//     objMyString.test_all();
+class Test_robot : public Test_base
+{
+private:
+    /* data */
+public:
+    Test_robot(/* args */){}
+    ~Test_robot(){}
+    void test_all() override {
+        test_place();
+        test_move();
+        test_left();
+        test_right();
+        test_report();
+        test_runCommand();
+    }
+    void test_place(){
+        Robot obj(5);
+        RobotCmd cmd={CMD_PLACE,0,0,NORTH};
+        int result;
+        
+        //{invalid
+            //wrong cmd.
+        result = obj.place({CMD_MOVE,0,0,NORTH}); assert(result == -1);
+            //out of table square
+        result = obj.place({CMD_PLACE,0,5,EAST}); assert(result == -1);
+        result = obj.place({CMD_PLACE,5,0,NORTH}); assert(result == -1);
+        result = obj.place({CMD_PLACE,6,3,EAST}); assert(result == -1);
+        //}
 
-//     test_ParseCommand obj;
-//     obj.test_all();
-//     return 0;
-// }
+        //{valid
+        auto func = [&obj](const RobotCmd& cmd) ->bool {
+            int result = obj.place(cmd);
+            return (result == 0 && obj.m_bPlaced && obj.m_lastState == cmd );
+        };
+        assert(func({CMD_PLACE,0,0,NORTH}));
+        assert(func({CMD_PLACE,4,0,SOUTH}));
+        assert(func({CMD_PLACE,0,4,EAST}));
+        assert(func({CMD_PLACE,3,2,EAST}));
+        //}
+    }
+    void test_move(){
+        Robot obj(5);
+
+        //{invalid
+        auto func1 = [&obj](const RobotCmd& ori, const RobotCmd& newValue) -> bool {
+            obj.place(ori);
+            int result = obj.move(); 
+            return result <0 && obj.m_lastState == ori;
+        };
+        assert(func1({CMD_PLACE,0,4,NORTH},{CMD_PLACE,0,4,NORTH}));
+        assert(func1({CMD_PLACE,0,0,SOUTH},{CMD_PLACE,0,0,SOUTH}));
+        assert(func1({CMD_PLACE,4,1,EAST},{CMD_PLACE,4,1,EAST}));
+        assert(func1({CMD_PLACE,0,2,WEST},{CMD_PLACE,0,2,WEST}));
+        //}
+
+        //{valid
+        auto func2 = [&obj](const RobotCmd& ori, const RobotCmd& newValue) -> bool {
+            obj.place(ori);
+            int result = obj.move(); 
+            return result >=0 && obj.m_lastState == newValue;
+        };
+        assert(func2({CMD_PLACE,0,0,NORTH},{CMD_PLACE,0,1,NORTH}));
+        assert(func2({CMD_PLACE,0,3,NORTH},{CMD_PLACE,0,4,NORTH}));
+        assert(func2({CMD_PLACE,0,1,SOUTH},{CMD_PLACE,0,0,SOUTH}));
+        assert(func2({CMD_PLACE,0,4,SOUTH},{CMD_PLACE,0,3,SOUTH}));
+        assert(func2({CMD_PLACE,0,0,EAST},{CMD_PLACE,1,0,EAST}));
+        assert(func2({CMD_PLACE,3,2,EAST},{CMD_PLACE,4,2,EAST}));
+        assert(func2({CMD_PLACE,1,0,WEST},{CMD_PLACE,0,0,WEST}));
+        assert(func2({CMD_PLACE,4,1,WEST},{CMD_PLACE,3,1,WEST}));
+        //}
+    }
+    void test_left(){
+        Robot obj(5);
+        //{valid
+        auto func = [&obj](const RobotCmd& ori, const RobotCmd& newValue) -> bool {
+            obj.place(ori);
+            int result = obj.left(); 
+            return result >=0 && obj.m_lastState == newValue;
+        };
+        assert(func({CMD_PLACE,0,0,NORTH},{CMD_PLACE,0,0,WEST}));
+        assert(func({CMD_PLACE,0,1,SOUTH},{CMD_PLACE,0,1,EAST}));
+        assert(func({CMD_PLACE,3,2,EAST},{CMD_PLACE,3,2,NORTH}));
+        assert(func({CMD_PLACE,4,1,WEST},{CMD_PLACE,4,1,SOUTH}));
+        //}
+    }
+    void test_right(){
+        Robot obj(5);
+        //{valid
+        auto func = [&obj](const RobotCmd& ori, const RobotCmd& newValue) -> bool {
+            obj.place(ori);
+            int result = obj.right(); 
+            return result >=0 && obj.m_lastState == newValue;
+        };
+        assert(func({CMD_PLACE,0,0,NORTH},{CMD_PLACE,0,0,EAST}));
+        assert(func({CMD_PLACE,0,1,SOUTH},{CMD_PLACE,0,1,WEST}));
+        assert(func({CMD_PLACE,3,2,EAST},{CMD_PLACE,3,2,SOUTH}));
+        assert(func({CMD_PLACE,4,1,WEST},{CMD_PLACE,4,1,NORTH}));
+        //}
+    }
+    void test_report(){
+        Robot obj(5);
+        obj.place({CMD_PLACE,4,1,WEST});
+
+        //invalid 
+        assert(obj.report() < 0);
+        //valid
+        auto func = [](const RobotCmd & cmd){
+            cout << cmd << endl;  };
+        obj.SetReportFunc(func);
+        assert(obj.report() >=0); 
+    }
+    void test_runCommand(){
+        Robot obj(5);
+        vector<RobotCmd> vReport;
+        auto funcReport = [&vReport](const RobotCmd &cmd){
+            cout << cmd << endl;  
+            vReport.push_back(cmd);
+            };
+        obj.SetReportFunc(funcReport);
+       
+        //{invalid
+         auto funcInvalid = [&obj,&vReport](const vector<string> &cmds,
+        const vector<RobotCmd>& report) -> bool {
+            vReport.clear();
+            obj.clearPlacedState();
+            int result =obj.runCommand(cmds);
+            return result <0 && vReport == report;
+        };
+            //wrong cmd, stop.
+        assert(funcInvalid({"PLACE 2,3,EAST","MOVE","MOVE","LEFT","REPORT","MOVE","REPORT","RIGHT","MOVE","MOVE",
+         "MOVE","REPORT","DOWN","LEFT","REPORT"},{{CMD_PLACE,4,3,NORTH},{CMD_PLACE,4,4,NORTH},{CMD_PLACE,4,4,EAST}}));
+        //}
+        //{valid
+         auto funcValidate = [&obj,&vReport](const vector<string> &cmds,
+        const vector<RobotCmd>& report) -> bool {
+            vReport.clear();
+            obj.clearPlacedState();
+            int result =obj.runCommand(cmds);
+            return result >=0 && vReport == report;
+        };
+            // no place, no action.
+        assert(funcValidate({"MOVE","LEFT","REPORT","MOVE","REPORT","RIGHT","MOVE","MOVE",
+         "LEFT","MOVE","RIGHT","REPORT"},{{CMD_PLACE,0,0,NORTH}}));
+            //normal.
+        assert(funcValidate({"PLACE 0,0,NORTH","LEFT","RIGHT","MOVE","MOVE","MOVE","MOVE",
+         "LEFT","MOVE","RIGHT","REPORT"},{{CMD_PLACE,0,4,NORTH}}));
+         //}
+    }
+};
+
+//Using factory pattern to hide certain classes's details.
+//only expose base class that is an interface.
+unique_ptr<Test_base> createObject(string name){
+    if (name =="mystring") return make_unique<Test_mystring>();
+    else if (name =="parsecommand") return make_unique<Test_ParseCommand>();
+    else if (name =="robot") return make_unique<Test_robot>();
+    return nullptr;
+}
+void testClass(string name){
+    unique_ptr<Test_base> pObj = createObject(name);
+    assert(pObj != nullptr);
+    pObj->test_all();
+}
+int main(){
+    testClass("mystring");
+    testClass("parsecommand");
+    testClass("robot");
+    return 0;
+}

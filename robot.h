@@ -5,6 +5,7 @@
 #include<algorithm>
 #include "robot.h"
 #include<map>
+#include<iostream>
 using namespace std;
 #define PLACE "PLACE"
 #define MOVE "MOVE"
@@ -25,10 +26,28 @@ enum Direction{
     EAST,
     WEST
 };
+
+struct RobotCmd{
+    RobotCmd(){}
+    RobotCmd(CmdType cmd,unsigned int x, unsigned int y, Direction f):
+        cmd(cmd),x(x),y(y),f(f){}
+    RobotCmd(const RobotCmd& l):cmd(l.cmd),x(l.x),y(l.y),f(l.f){}
+    bool operator==(const RobotCmd& l) const {
+        return (l.cmd==cmd) && (l.x ==x) && (l.y ==y) && (l.f ==f);
+    }
+    CmdType cmd{CMD_UNKNOWN};
+    unsigned int x{};
+    unsigned int y{};
+    Direction f{NORTH};
+};
+
+ostream& operator<<(ostream& os, const RobotCmd& cmd);
+
 //The origin (0,0) is the SOUTH WEST most corner.
-_Undefined_class TableSquare{
+class TableSquare{
+public:
     TableSquare(){}
-    ~TableSquare(){};
+    ~TableSquare(){}
 void setrange(unsigned int length){
     m_length = length;
 }
@@ -55,22 +74,6 @@ private:
 };
 
 
-
-struct RobotCmd{
-    RobotCmd(){}
-    RobotCmd(CmdType cmd,unsigned int x, unsigned int y, Direction f):
-        cmd(cmd),x(x),y(y),f(f){}
-    RobotCmd(const RobotCmd& l):cmd(l.cmd),x(l.x),y(l.y),f(l.f){}
-    inline bool operator==(const RobotCmd& l) {
-        return (l.cmd==cmd) && (l.x ==x) && (l.y ==y) && (l.f ==f);
-    }
-    CmdType cmd{CMD_UNKNOWN};
-    unsigned int x{0};
-    unsigned int y{0};
-    Direction f{NORTH};
-};
-
-
 class ParseCommand{
 public:
    ParseCommand();
@@ -88,11 +91,11 @@ input: commands (text formation) in a container or one by one
 output: report result via a function object.*/
 class Robot
 {
-
 public:
     Robot(unsigned int uiTableLength);
     virtual ~Robot();
-    int runCommand(vector<string>& cmds);
+    void SetReportFunc(function<void(const RobotCmd &)> func);
+    int runCommand(const vector<string>& cmds);
     inline void clearPlacedState();
     int place(const RobotCmd& cmd);
     int move();
@@ -100,10 +103,18 @@ public:
     int right();
     int report();
 
+public:
+    bool m_bPlaced{};
+    RobotCmd    m_lastState;
 private:
     /* data */
-    bool m_bPlaced{false};
-    RobotCmd    m_lastState;
+    function<void(const RobotCmd &)> m_funcReport;
     TableSquare m_tableSquare;
+    map<Direction,Direction>    m_mapForLeft{{NORTH,WEST},
+                {SOUTH,EAST},{EAST,NORTH},{WEST,SOUTH}};
+    map<Direction,Direction>    m_mapForRight{{NORTH,EAST},
+                {SOUTH,WEST},{EAST,SOUTH},{WEST,NORTH}};
+
+    
 };
 

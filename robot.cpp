@@ -1,6 +1,17 @@
 #include "robot.h"
 #include <cassert>
 #include "myString.h"
+#include <iostream>
+ostream& operator<<(ostream& os, const RobotCmd& cmd){
+    const vector<string> s({"NORTH","SOUTH","EAST","WEST"});
+    if(cmd.f >= s.size()){
+        os << "F is invalid!" << endl;
+        return os;
+    }
+    os << "{ cmd: " << cmd.cmd << " x: " << cmd.x 
+        << " y: " << cmd.y << " f: " << cmd.f << " }"<< endl;
+    return os;
+}
 
  ParseCommand::ParseCommand(){
  }
@@ -18,6 +29,9 @@ RobotCmd ParseCommand::parseACommand(const string& cmd) {
     vector<string> cmdSplited = MyString::split(cmd," ");
     if(cmdSplited.size() ==0)
         return cmdReturn;
+    //remove extra blank spaces. do later.
+    remove(cmdSplited.begin(),cmdSplited.end(),"");
+
     string sCmdType = cmdSplited.at(0);
     //change the type to cmdtype 
     vector<unsigned int> cmdParams;
@@ -67,62 +81,58 @@ Robot::~Robot()
 {
 }
 
- int Robot::runCommand(vector<string>& cmds){
-        
-        //upper and remove extra blank spaces. do later.
-
-        ParseCommand parse;
-        RobotCmd oneCmd;
-        bool error = false;
-        //1. find "PLACE" if !m_bPlaced
-        auto iter = cmds.cbegin();
-        while(!m_bPlaced && iter != cmds.cend() && !error){
-            oneCmd = parse.parseACommand(*iter);
-            if(oneCmd.cmd == CMD_PLACE){
-                if(place(oneCmd) >= 0) m_bPlaced = true;
-            }
-            ++iter;
-            if(oneCmd.cmd == CMD_UNKNOWN)
-                error = true;
-                return -1;
+ int Robot::runCommand(const vector<string>& cmds){
+    ParseCommand parse;
+    RobotCmd oneCmd;
+    //1. find "PLACE" if !m_bPlaced
+    auto iter = cmds.cbegin();
+    while(!m_bPlaced && iter != cmds.cend()){
+        oneCmd = parse.parseACommand(*iter);
+        if(oneCmd.cmd == CMD_PLACE) place(oneCmd);
+        ++iter;
+        if(oneCmd.cmd == CMD_UNKNOWN){
+            return -1;
         }
-
-        //do cmd one by one.
-        for(;iter != cmds.cend();++iter){
-            oneCmd = parse.parseACommand(*iter);
-            switch (oneCmd.cmd)
-            {
-            case CMD_MOVE:
-                move();
-                break;
-            case CMD_LEFT:
-                left();
-                break;
-            case CMD_RIGHT:
-                left();
-                break;
-            case CMD_REPORT:
-                report();
-                break;
-            case CMD_PLACE:
-                place();
-                break;
-            default:
-                return -1;
-                break;
-            } 
-        }
-
-        return 0;
-        
     }
+
+    //do cmd one by one.
+    for(;iter != cmds.cend();++iter){
+        oneCmd = parse.parseACommand(*iter);
+        switch (oneCmd.cmd)
+        {
+        case CMD_MOVE:
+            move();
+            break;
+        case CMD_LEFT:
+            left();
+            break;
+        case CMD_RIGHT:
+            right();
+            break;
+        case CMD_REPORT:
+            report();
+            break;
+        case CMD_PLACE:
+            place(oneCmd);
+            break;
+        default:
+            return -1;
+            break;
+        } 
+    }
+
+    return 0;
+        
+}
 void Robot::clearPlacedState(){
     m_bPlaced = false;
 }
 
 int Robot::place(const RobotCmd& cmd){
-    if(m_tableSquare.inside(cmd.x,cmd.y) <0) return -1;
+    if(cmd.cmd != CMD_PLACE) return -1;
+    if(!m_tableSquare.inside(cmd.x,cmd.y)) return -1;
     m_lastState = cmd;
+    m_bPlaced = true;
     return 0;
 }
 int Robot::move(){
@@ -132,8 +142,25 @@ int Robot::move(){
     m_lastState = result.second;
     return 0;
 }
-int Robot::left(){return 0;}
-int Robot::right(){return 0;}
-int Robot::report(){return 0;};
+int Robot::left(){
+    m_lastState.f = m_mapForLeft[m_lastState.f];
+    return 0;
+}
+int Robot::right(){
+    m_lastState.f = m_mapForRight[m_lastState.f];
+    return 0;
+}
+int Robot::report(){
+    if(nullptr == m_funcReport) {
+        cerr << "Robot::report can't report because of no report function! Please call Robot::SetReportFunc() to set report function." <<endl;
+        return -1;
+    }
+    m_funcReport(m_lastState);
+    return 0;
+}   
+void Robot::SetReportFunc(function<void(const RobotCmd &)> func){
+    m_funcReport = func;
+}
+
 
    
