@@ -96,7 +96,7 @@ public:
     virtual ~Robot();
     void SetReportFunc(function<void(const RobotCmd &)> func);
     int runCommand(const vector<string>& cmds);
-    inline void clearPlacedState();
+    void clearPlacedState();
     int place(const RobotCmd& cmd);
     int move();
     int left();
