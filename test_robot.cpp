@@ -14,6 +14,12 @@
     Test_base(/* args */){}
     ~Test_base(){}
     virtual void test_all()=0;
+    void printStartTip(string sFuncName){
+        cout << "[Test " << sFuncName << " ...]" <<endl;
+    }
+    void printEndTip(string sFuncName){
+        cout << "[" << sFuncName << " OK]" <<endl;
+    }
  };
  
  
@@ -23,7 +29,9 @@ public:
     Test_ParseCommand(){}
     ~Test_ParseCommand() {}
     void test_all() override {
+        printStartTip("ParseCommand::parseACommand()");
         test_all_parseACommand();
+        printEndTip("ParseCommand::parseACommand()");
     }
     void test_all_parseACommand(){
         //{valid
@@ -83,7 +91,9 @@ public:
     Test_mystring(/* args */){}
     ~Test_mystring(){}
     void test_all() override {
+        printStartTip("MyString::split()");
         test_all_split();
+        printEndTip("MyString::split()");
     }
      void test_all_split(){
         //invalide parameters.
@@ -106,7 +116,7 @@ private:
     }
 };
 
-
+ //unit test for class robot.
 class Test_robot : public Test_base
 {
 private:
@@ -115,12 +125,29 @@ public:
     Test_robot(/* args */){}
     ~Test_robot(){}
     void test_all() override {
+        printStartTip("Robot::place()");
         test_place();
+        printEndTip("Robot::place()");
+
+        printStartTip("Robot::move()");
         test_move();
+        printEndTip("Robot::move()");
+
+        printStartTip("Robot::left()");
         test_left();
+        printEndTip("Robot::left()");
+
+        printStartTip("Robot::right()");
         test_right();
+        printEndTip("Robot::right()");
+
+        printStartTip("Robot::report()");
         test_report();
+        printEndTip("Robot::report()");
+
+        printStartTip("Robot::runCommand()");
         test_runCommand();
+        printEndTip("Robot::runCommand()");
     }
     void test_place(){
         Robot obj(5);
@@ -214,7 +241,7 @@ public:
         assert(obj.report() < 0);
         //valid
         auto func = [](const RobotCmd & cmd){
-            cout << cmd << endl;  };
+            cout << "Output robot's position: " << cmd << endl;  };
         obj.SetReportFunc(func);
         assert(obj.report() >=0); 
     }
@@ -222,7 +249,7 @@ public:
         Robot obj(5);
         vector<RobotCmd> vReport;
         auto funcReport = [&vReport](const RobotCmd &cmd){
-            cout << cmd << endl;  
+            cout << "Output robot's position" <<  cmd << endl;  
             vReport.push_back(cmd);
             };
         obj.SetReportFunc(funcReport);
@@ -236,9 +263,11 @@ public:
             return result <0 && vReport == report;
         };
             //wrong cmd, stop.
-        assert(funcInvalid({"PLACE 2,3,EAST","MOVE","MOVE","LEFT","REPORT","MOVE","REPORT","RIGHT","MOVE","MOVE",
-         "MOVE","REPORT","DOWN","LEFT","REPORT"},{{CMD_PLACE,4,3,NORTH},{CMD_PLACE,4,4,NORTH},{CMD_PLACE,4,4,EAST}}));
+        assert(funcInvalid({"PLACE 2,3,EAST","MOVE","MOVE","LEFT","REPORT","MOVE",
+                "REPORT","RIGHT","MOVE","MOVE","MOVE","REPORT","DOWN","LEFT","REPORT"},
+                {{CMD_PLACE,4,3,NORTH},{CMD_PLACE,4,4,NORTH},{CMD_PLACE,4,4,EAST}}));
         //}
+
         //{valid
          auto funcValidate = [&obj,&vReport](const vector<string> &cmds,
         const vector<RobotCmd>& report) -> bool {
@@ -247,12 +276,23 @@ public:
             int result =obj.runCommand(cmds);
             return result >=0 && vReport == report;
         };
-            // no place, no action.
-        assert(funcValidate({"MOVE","LEFT","REPORT","MOVE","REPORT","RIGHT","MOVE","MOVE",
-         "LEFT","MOVE","RIGHT","REPORT"},{{CMD_PLACE,0,0,NORTH}}));
+            // no 'PLACE', no action.
+        assert(funcValidate({"MOVE","LEFT","REPORT","MOVE","REPORT","RIGHT","MOVE",
+                "MOVE","LEFT","MOVE","RIGHT","REPORT"},{}));
+            //ignore cmd before the first 'PLACE'
+        assert(funcValidate({"MOVE","RIGHT","REPORT","PLACE 2,2,WEST","LEFT","RIGHT",
+                "LEFT","MOVE","MOVE","MOVE","RIGHT","REPORT"},
+                {{CMD_PLACE,2,0,WEST}}));
+            //Ignore "MOVE" causing falling, but continue to do coming command.
+        assert(funcValidate({"PLACE 3,2,SOUTH","MOVE","MOVE","MOVE",
+                "LEFT","MOVE","REPORT"},{{CMD_PLACE,4,0,EAST}}));    
             //normal.
         assert(funcValidate({"PLACE 0,0,NORTH","LEFT","RIGHT","MOVE","MOVE","MOVE","MOVE",
-         "LEFT","MOVE","RIGHT","REPORT"},{{CMD_PLACE,0,4,NORTH}}));
+                "LEFT","MOVE","RIGHT","REPORT"},{{CMD_PLACE,0,4,NORTH}}));
+         //report many times.
+        assert(funcValidate({"PLACE 1,2,EAST", "LEFT","REPORT","RIGHT","LEFT","MOVE",
+                "MOVE","MOVE","RIGHT","REPORT","MOVE","LEFT"},
+                {{CMD_PLACE,1,2,NORTH},{CMD_PLACE,1,4,EAST}}));
          //}
     }
 };

@@ -8,8 +8,8 @@ ostream& operator<<(ostream& os, const RobotCmd& cmd){
         os << "F is invalid!" << endl;
         return os;
     }
-    os << "{ cmd: " << cmd.cmd << " x: " << cmd.x 
-        << " y: " << cmd.y << " f: " << cmd.f << " }"<< endl;
+    os << "{ x: " << cmd.x 
+        << " y: " << cmd.y << " f: " << s[(size_t)cmd.f] << " }";
     return os;
 }
 
@@ -130,15 +130,20 @@ void Robot::clearPlacedState(){
 
 int Robot::place(const RobotCmd& cmd){
     if(cmd.cmd != CMD_PLACE) return -1;
-    if(!m_tableSquare.inside(cmd.x,cmd.y)) return -1;
+    if(!m_tableSquare.inside(cmd.x,cmd.y)){
+        clog << "Ignore PLACE at point:" << cmd << endl;
+        return -1;
+    }
     m_lastState = cmd;
     m_bPlaced = true;
     return 0;
 }
 int Robot::move(){
     auto result = m_tableSquare.canMove(m_lastState);
-    if(!result.first)
+    if(!result.first){
+        clog << "Ignore MOVE at point:" << m_lastState << endl;
         return -1;
+    }
     m_lastState = result.second;
     return 0;
 }
@@ -153,6 +158,10 @@ int Robot::right(){
 int Robot::report(){
     if(nullptr == m_funcReport) {
         cerr << "Robot::report can't report because of no report function! Please call Robot::SetReportFunc() to set report function." <<endl;
+        return -1;
+    }
+    if(!m_bPlaced){
+        cerr << "Robot::report can't report because of none PLACE has been run!" <<endl;
         return -1;
     }
     m_funcReport(m_lastState);

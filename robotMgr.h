@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -14,7 +15,7 @@ public:
     Report(/* args */){}
     ~Report(){}
     void reportResult(const RobotCmd & cmd){
-        cout << "Report robot's position " << cmd << endl;
+        cout << "Ouput robot's position: " << cmd << endl;
     }
 };
 
@@ -35,7 +36,8 @@ public:
 
         while(true){
             while(index < framecount && getline(input,line)){
-                for_each(line.begin(),line.end(),::toupper);//upper.
+                transform(line.begin(),line.end(),line.begin(),::toupper);//upper.
+                if(line =="QUIT") return 0;
                 vLines.push_back(line);
                 ++index;
             }
@@ -43,8 +45,8 @@ public:
             //run robot
             iCount += index;
             if( rbt.runCommand(vLines) < 0){
-                cerr << "Robot run command error! \nGoodBye!" << endl;
-                return -1;
+                cerr << "Unknown command! Ignored it!" << endl;
+                cout << "Please type quit if you want to quit the app." << endl;
             }
             if(index < framecount){//file read finished.
                 cout << "Finshed all command (count:" << iCount <<"). GoodBye!" << endl;

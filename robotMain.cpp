@@ -1,55 +1,57 @@
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <functional>
-#include "robot.h"
-using namespace std;
-class Report
-{
-private:
-    /* data */
-public:
-    Report(/* args */){}
-    ~Report(){}
-    void reportResult(const RobotCmd & cmd){
-        cout << cmd << endl;
+#include "robotMgr.h"
+#include <stdio.h>
+#include <unistd.h>
+int main(int argc, char* argv[]){
+    string filename{};
+    //opt.
+     int c = 0; 
+    //read each option and its params.
+    while(EOF != (c = getopt(argc,argv,"hi:")))
+    {
+        switch(c)
+        {
+            case 'h':{
+                string shelp = "robotMain [-i <filename>]\n"
+                        "Examples:\n"
+                        "robotMain //input is cin.\n"
+                        "robotMain -i ./cmd1.txt //input file name is ./cmd1.txt that includes commands to run the robot.\n"
+                        "robotMain ./cmd1.txt //same to the above.";
+                cout << shelp << endl; 
+                return 0;                           
+                break;
+            }
+            //-i: input, following command filename.
+            case 'i':
+                cout << "Command filename is: " << optarg << endl;
+                filename = optarg;
+                break;
+            //unsupported option.
+            case '?':
+                cout << "unknow option:" << optopt <<endl;
+                break;
+            default:
+                break;
+        }   
+    } 
+    //filename but lacking -i.
+    if(argc == 2) filename = argv[1];
+
+    RobotMgr mgr;
+    //filename//"./cmd/cmd1.txt";
+    if(filename.size() >0){
+        ifstream cmdfile(filename);
+        if(cmdfile.fail()){
+            cout << filename << " open fail" << endl;
+            return -1;
+        }
+            
+        cout << "Start run commands in the file..." << endl;
+        return mgr.run(cmdfile,cout,100);
+    } else {
+        cout << "Please input commands one by one. \n" << 
+        "E.g., PLACE 1,1,NORTH MOVE LEFT RIGHT REPORT." << endl;
+        cout << "Please type quit if you want to quit the app." << endl;
+        return mgr.run(cin,cout,1);
     }
-};
-
-// int main(int argc, char* argv[]){
-//     string filename = "./cmd/cmd1.txt";
-//     ifstream cmdfile(filename);
-//     vector<string> vLines;
-//     string line;
-//     Robot rbt(5);
-//     Report reportObj;
-//     rbt.SetReportFunc(bind(&Report::reportResult,&reportObj,placeholders::_1));
-    
-//     int framecount = 1000;
-//     int iCount =0;
-//     int index =0;
-//     while(true){
-//         while(index < framecount && getline(cmdfile,line)){
-//             for_each(line.begin(),line.end(),::toupper);//upper.
-//             vLines.push_back(line);
-//             ++index;
-//         }
-
-//         //run robot
-//         iCount += index;
-//         if( rbt.runCommand(vLines) < 0){
-//             cout << "Robot run command error!" << endl;
-//             return EXIT_FAILURE;
-//         }
-//         if(index < framecount){//file read finished.
-//         cout << "Finshed all command (count:" << iCount <<"). Byebye!" << endl;
-//         return 0;
-//         } 
-//         index =0;
-//         vLines.clear();
-//     }
-
-//     return 0;
-// }
+    return 0;    
+}
